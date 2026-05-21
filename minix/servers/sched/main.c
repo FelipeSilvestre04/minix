@@ -31,6 +31,8 @@ int main(void)
 	/* SEF local startup. */
 	sef_local_startup();
 
+	printf("=== ESCALONADOR CUSTOMIZADO DO FELIPE ATIVO ===\n");
+
 	/* This is SCHED's main loop - get work and do it, forever and forever. */
 	while (TRUE) {
 		int ipc_status;
