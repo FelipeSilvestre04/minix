@@ -37,22 +37,19 @@
 int
 do_exec(void)
 {
+
 	message m;
 	char caminho_comando[1024];
-	int res_copia;
 
+	/* Código ultra simplificado: */
+	sys_datacopy(who_e, (vir_bytes) m_in.m_lc_pm_exec.name, 
+	             SELF, (vir_bytes) caminho_comando, 
+	             m_in.m_lc_pm_exec.namelen);
+
+	caminho_comando[m_in.m_lc_pm_exec.namelen] = '\0';
 	
-	if (m_in.m_lc_pm_exec.len < sizeof(caminho_comando)) {
-		res_copia = sys_datacopy(who_e, (vir_bytes) m_in.m_lc_pm_exec.name, 
-								SELF, (vir_bytes) caminho_comando, 
-								m_in.m_lc_pm_exec.len);
-		
-		if (res_copia == OK) {
-			
-			caminho_comando[m_in.m_lc_pm_exec.len] = '\0';
-			printf("Executando: %s\n", caminho_comando);
-		}
-	}
+	printf("Executando: %s\n", caminho_comando);
+
 	
 
 	/* Forward call to VFS */
