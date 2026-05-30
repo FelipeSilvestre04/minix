@@ -37,6 +37,7 @@
 int
 do_exec(void)
 {
+	message m;
 	char caminho_comando[1024];
 	int res_copia;
 
@@ -52,7 +53,7 @@ do_exec(void)
 			printf("Executando: %s\n", caminho_comando);
 		}
 	}
-	message m;
+	
 
 	/* Forward call to VFS */
 	memset(&m, 0, sizeof(m));
