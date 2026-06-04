@@ -16,7 +16,7 @@
 
 static unsigned balance_timeout;
 
-#define BALANCE_TIMEOUT	5 /* how often to balance queues in seconds */
+#define BALANCE_TIMEOUT	1 /* how often to balance queues in seconds */
 
 static int schedule_process(struct schedproc * rmp, unsigned flags);
 
