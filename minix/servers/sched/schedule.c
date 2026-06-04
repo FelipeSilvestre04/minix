@@ -96,8 +96,15 @@ int do_noquantum(message *m_ptr)
 	}
 
 	rmp = &schedproc[proc_nr_n];
-	if (rmp->priority < MIN_USER_Q) {
-		rmp->priority += 1; /* lower priority */
+
+	/* No Round Robin, nao penalizamos processos de usuario com queda de prioridade.
+	 * Mantemos a prioridade fixa do usuario (USER_Q). */
+	if (rmp->priority >= USER_Q) {
+		rmp->priority = USER_Q;
+	} else {
+		if (rmp->priority < MIN_USER_Q) {
+			rmp->priority += 1; /* lower priority */
+		}
 	}
 
 	if ((rv = schedule_process_local(rmp)) != OK) {
@@ -213,6 +220,12 @@ int do_start_scheduling(message *m_ptr)
 		assert(0);
 	}
 
+	/* Se for processo de usuario, forcamos a prioridade USER_Q e quantum padrao */
+	if (rmp->priority >= USER_Q) {
+		rmp->priority = USER_Q;
+		rmp->time_slice = DEFAULT_USER_TIME_SLICE;
+	}
+
 	/* Take over scheduling the process. The kernel reply message populates
 	 * the processes current priority and its time slice */
 	if ((rv = sys_schedctl(0, rmp->endpoint, 0, 0, 0)) != OK) {
@@ -278,8 +291,14 @@ int do_nice(message *m_ptr)
 	old_q     = rmp->priority;
 	old_max_q = rmp->max_priority;
 
-	/* Update the proc entry and reschedule the process */
-	rmp->max_priority = rmp->priority = new_q;
+	/* Update the proc entry and reschedule the process.
+	 * Se for processo de usuario, mantemos a prioridade real em USER_Q */
+	rmp->max_priority = new_q;
+	if (rmp->max_priority >= USER_Q) {
+		rmp->priority = USER_Q;
+	} else {
+		rmp->priority = new_q;
+	}
 
 	if ((rv = schedule_process_local(rmp)) != OK) {
 		/* Something went wrong when rescheduling the process, roll
@@ -357,9 +376,12 @@ void balance_queues(void)
 
 	for (proc_nr=0, rmp=schedproc; proc_nr < NR_PROCS; proc_nr++, rmp++) {
 		if (rmp->flags & IN_USE) {
-			if (rmp->priority > rmp->max_priority) {
-				rmp->priority -= 1; /* increase priority */
-				schedule_process_local(rmp);
+			/* Nao rebalanceamos processos de usuario (prioridade >= USER_Q) */
+			if (rmp->priority < USER_Q) {
+				if (rmp->priority > rmp->max_priority) {
+					rmp->priority -= 1; /* increase priority */
+					schedule_process_local(rmp);
+				}
 			}
 		}
 	}
