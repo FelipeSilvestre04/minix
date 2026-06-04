@@ -35,7 +35,7 @@ static unsigned balance_timeout;
 
 /*
  * Fila única para todos os processos de usuário.
- * USER_Q é definido em kernel/proc.h — geralmente vale 7 em NR_SCHED_QUEUES=16.
+ * USER_Q é definido in kernel/proc.h — geralmente vale 7 em NR_SCHED_QUEUES=16.
  * Usar sempre USER_Q garante que TODOS entrem na mesma fila (FIFO).
  */
 #define FCFS_PRIORITY       USER_Q

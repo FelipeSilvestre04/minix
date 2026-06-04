@@ -1,0 +1,77 @@
+================================================================================
+ANOTAÇÕES DAS MODIFICAÇÕES: MEDIÇÃO DO TEMPO MÉDIO DE FILA NO MINIX 3
+================================================================================
+
+Este arquivo resume as alterações realizadas para expor o tempo de fila e
+contadores de preempção do kernel do Minix 3 para o espaço de usuário usando
+a chamada de sistema getrusage().
+
+--------------------------------------------------------------------------------
+1. ARQUIVO MODIFICADO: minix/servers/pm/misc.c
+--------------------------------------------------------------------------------
+Alterado dentro da função do_getrusage() (por volta da linha 440) para obter a
+tabela de processos do kernel e converter o tempo de fila para milissegundos.
+
+Trecho adicionado logo após "if ((r = vm_getrusage(who_e, &r_usage, children)) != OK) return r;":
+
+	if (!children) {
+		static struct proc proc_table[NR_TASKS + NR_PROCS];
+		if (sys_getproctab(proc_table) == OK) {
+			int proc_nr;
+			if (pm_isokendpt(who_e, &proc_nr) == OK) {
+				struct proc *p = &proc_table[proc_nr + NR_TASKS];
+				u64_t time_in_queue_cycles = p->p_accounting.time_in_queue;
+				unsigned long queue_time_ms = 0;
+				#ifndef CONFIG_MAX_CPUS
+				#define CONFIG_MAX_CPUS 16
+				#endif
+				struct cpu_info cpu_info_buf[CONFIG_MAX_CPUS];
+
+				if (sys_getinfo(GET_CPUINFO, cpu_info_buf, sizeof(cpu_info_buf), NULL, 0) == OK && cpu_info_buf[0].freq > 0) {
+					queue_time_ms = (unsigned long)(time_in_queue_cycles / (cpu_info_buf[0].freq * 1000));
+				} else {
+					queue_time_ms = (unsigned long)(time_in_queue_cycles / 2000000);
+				}
+
+				r_usage.ru_maxrss = queue_time_ms;
+				r_usage.ru_nivcsw = p->p_accounting.preempted;
+				r_usage.ru_nvcsw = p->p_accounting.dequeues;
+			}
+		}
+	}
+
+--------------------------------------------------------------------------------
+2. NOVO ARQUIVO: teste_processos_duas_metricas.c (no diretório raiz do Minix)
+--------------------------------------------------------------------------------
+Implementação do teste que inicia filhos de CPU e I/O-bound. Antes do exit(0)
+em cada processo filho, chamamos getrusage para calcular o tempo médio de fila:
+
+    if (getrusage(RUSAGE_SELF, &usage) == 0) {
+        total_context_switches = usage.ru_nivcsw + usage.ru_nvcsw;
+        if (total_context_switches > 0) {
+            avg_queue_time = (usage.ru_maxrss / 1000.0) / total_context_switches;
+        }
+    }
+    printf("[IO/CPU]\t %d\t %g\t %g\n", num, SEC(p_time), avg_queue_time);
+
+--------------------------------------------------------------------------------
+3. PASSOS PARA COMPILAR E EXECUTAR NA VM MINIX 3:
+--------------------------------------------------------------------------------
+1. Recompilar e Instalar o PM (Process Manager):
+   # cd /usr/src/minix/servers/pm
+   # make && make install
+
+2. Recompilar o Kernel do Minix para sincronização:
+   # cd /usr/src/releasetools
+   # make hdboot
+
+3. Reiniciar a VM do Minix (reboot) para aplicar as alterações.
+
+4. Compilar o novo programa de teste:
+   # clang -o teste_processos_duas_metricas /usr/src/teste_processos_duas_metricas.c
+
+5. Executar a simulação:
+   # ./teste_processos_duas_metricas <n_procs> <io_ops> <cpu_ops>
+   Exemplo:
+   # ./teste_processos_duas_metricas 10 1000 5000000
+================================================================================

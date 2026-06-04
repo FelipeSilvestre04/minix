@@ -33,6 +33,11 @@ EXTERN struct schedproc {
 	bitchunk_t cpu_mask[BITMAP_CHUNKS(CONFIG_MAX_CPUS)]; /* what CPUs is the
 								process allowed
 								to run on */
+
+	unsigned long arrival_time; /* FCFS: momento de chegada (em ticks) */
+	unsigned long creation_time; /* Garantido: momento de criacao (em ticks) */
+	unsigned long cpu_time_consumed; /* Garantido: tempo de CPU consumido (em ticks) */
+
 } schedproc[NR_PROCS];
 
 /* Flag values */

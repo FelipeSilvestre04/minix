@@ -1,0 +1,27 @@
+Resumo das Alterações nos Escalonadores em relação ao Padrão (MLFQ)
+-----------------------------------------------------------------
+
+1. FIFO/FCFS (schedule_fifo.c)
+- Prioridade: Todos os processos de usuário rodam na prioridade fixa USER_Q.
+- Quantum: Seta um valor muito alto (100.000 ticks) para simular execução não-preemptiva.
+- do_noquantum: Não reduz a prioridade do processo ao estourar o tempo.
+- balance_queues: Desativado para processos de usuário (sem elevação periódica).
+
+2. Round Robin (schedule_rr.c)
+- Prioridade: Todos os processos de usuário rodam na prioridade fixa USER_Q.
+- Quantum: Mantém o valor padrão (200 ticks) para garantir a preempção periódica.
+- do_noquantum: Apenas renova o quantum, mantendo a prioridade estática em USER_Q.
+- do_nice: Força a prioridade real em USER_Q se for processo de usuário.
+- balance_queues: Desativado para processos de usuário.
+
+3. Garantido / Fair-Share (schedule_garantido.c)
+- Estrutura (schedproc.h): Adicionados os campos 'creation_time' e 'cpu_time_consumed'.
+- do_start_scheduling: Inicializa as métricas de tempo e salva o tick de criação do processo (getuptime).
+- do_noquantum: Apenas renova o quantum (a prioridade é calculada dinamicamente).
+- do_nice: Mantém o processo de usuário no range dinâmico gerenciado pelo balanceamento.
+- balance_queues:
+  - Lê o tempo de CPU (user + sys) acumulado real dos processos da tabela do kernel (sys_getproctab).
+  - Calcula a menor razão de uso usando multiplicação cruzada de inteiros para evitar ponto flutuante:
+    C_j * life_best < C_best * life_j
+  - Define a prioridade do processo mais prejudicado (menor razão) como USER_Q (máxima).
+  - Rebaixa os demais processos de usuário ativos para USER_Q + 1.
