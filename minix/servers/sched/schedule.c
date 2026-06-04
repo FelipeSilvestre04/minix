@@ -12,10 +12,11 @@
 #include <assert.h>
 #include <minix/com.h>
 #include <machine/archtypes.h>
+#include "kernel/proc.h"
 
 static unsigned balance_timeout;
 
-#define BALANCE_TIMEOUT	5 /* how often to balance queues in seconds */
+#define BALANCE_TIMEOUT	1 /* how often to balance queues in seconds */
 
 static int schedule_process(struct schedproc * rmp, unsigned flags);
 
@@ -96,12 +97,11 @@ int do_noquantum(message *m_ptr)
 	}
 
 	rmp = &schedproc[proc_nr_n];
-
-	/* No Round Robin, nao penalizamos processos de usuario com queda de prioridade.
-	 * Mantemos a prioridade fixa do usuario (USER_Q). */
-	if (rmp->priority >= USER_Q) {
-		rmp->priority = USER_Q;
-	} else {
+	
+	/* No escalonador Garantido, a prioridade eh ajustada no balance_queues.
+	 * Aqui apenas renovamos o quantum e mantemos a prioridade atual se for processo de usuario. */
+	if (rmp->priority < USER_Q) {
+		/* Mantemos o comportamento padrao para processos de sistema, se aplicavel */
 		if (rmp->priority < MIN_USER_Q) {
 			rmp->priority += 1; /* lower priority */
 		}
@@ -220,8 +220,12 @@ int do_start_scheduling(message *m_ptr)
 		assert(0);
 	}
 
-	/* Se for processo de usuario, forcamos a prioridade USER_Q e quantum padrao */
+	/* Para o Escalonador Garantido: Inicializar tempos e prioridade do processo de usuario */
 	if (rmp->priority >= USER_Q) {
+		clock_t uptime, realtime, boottime;
+		getuptime(&uptime, &realtime, &boottime);
+		rmp->creation_time = (unsigned long) uptime;
+		rmp->cpu_time_consumed = 0;
 		rmp->priority = USER_Q;
 		rmp->time_slice = DEFAULT_USER_TIME_SLICE;
 	}
@@ -292,10 +296,13 @@ int do_nice(message *m_ptr)
 	old_max_q = rmp->max_priority;
 
 	/* Update the proc entry and reschedule the process.
-	 * Se for processo de usuario, mantemos a prioridade real em USER_Q */
+	 * Se for processo de usuario, mantemos no range do usuario, mas o ajuste real
+	 * sera feito pelo calculo dinamico no balance_queues. */
 	rmp->max_priority = new_q;
 	if (rmp->max_priority >= USER_Q) {
-		rmp->priority = USER_Q;
+		if (rmp->priority < USER_Q) {
+			rmp->priority = USER_Q;
+		}
 	} else {
 		rmp->priority = new_q;
 	}
@@ -373,19 +380,74 @@ void balance_queues(void)
 {
 	struct schedproc *rmp;
 	int r, proc_nr;
+	static struct proc proc_table[NR_TASKS + NR_PROCS];
+	clock_t uptime, realtime, boottime;
 
-	for (proc_nr=0, rmp=schedproc; proc_nr < NR_PROCS; proc_nr++, rmp++) {
-		if (rmp->flags & IN_USE) {
-			/* Nao rebalanceamos processos de usuario (prioridade >= USER_Q) */
-			if (rmp->priority < USER_Q) {
-				if (rmp->priority > rmp->max_priority) {
-					rmp->priority -= 1; /* increase priority */
+	/* 1. Obter tabelas de processos e uptime atual do kernel */
+	if (sys_getproctab(proc_table) != OK) {
+		printf("SCHED: Erro ao obter a tabela de processos do kernel\n");
+		goto set_alarm;
+	}
+	getuptime(&uptime, &realtime, &boottime);
+
+	/* 2. Rebalanceamento padrao para processos de sistema (prioridade < USER_Q) */
+	for (proc_nr = 0; proc_nr < NR_PROCS; proc_nr++) {
+		rmp = &schedproc[proc_nr];
+		if ((rmp->flags & IN_USE) && rmp->priority < USER_Q) {
+			if (rmp->priority > rmp->max_priority) {
+				rmp->priority -= 1; /* increase priority */
+				schedule_process_local(rmp);
+			}
+		}
+	}
+
+	/* 3. Atualizar estatisticas de CPU consumida para os processos de usuario */
+	for (proc_nr = 0; proc_nr < NR_PROCS; proc_nr++) {
+		rmp = &schedproc[proc_nr];
+		if ((rmp->flags & IN_USE) && rmp->max_priority >= USER_Q) {
+			struct proc *kp = &proc_table[proc_nr + NR_TASKS];
+			rmp->cpu_time_consumed = kp->p_user_time + kp->p_sys_time;
+		}
+	}
+
+	/* 4. Encontrar o processo de usuario ativo mais "prejudicado" (menor razao C / T) */
+	int best_proc_nr = -1;
+	for (proc_nr = 0; proc_nr < NR_PROCS; proc_nr++) {
+		rmp = &schedproc[proc_nr];
+		if ((rmp->flags & IN_USE) && rmp->max_priority >= USER_Q) {
+			if (best_proc_nr == -1) {
+				best_proc_nr = proc_nr;
+			} else {
+				unsigned long life_j = uptime - rmp->creation_time;
+				if (life_j == 0) life_j = 1;
+				
+				unsigned long life_best = uptime - schedproc[best_proc_nr].creation_time;
+				if (life_best == 0) life_best = 1;
+
+				/* Multiplicacao cruzada para evitar ponto flutuante:
+				 * C_j * life_best < C_best * life_j */
+				if (rmp->cpu_time_consumed * life_best < schedproc[best_proc_nr].cpu_time_consumed * life_j) {
+					best_proc_nr = proc_nr;
+				}
+			}
+		}
+	}
+
+	/* 5. Aplicar as prioridades de acordo com a justica garantida */
+	if (best_proc_nr != -1) {
+		for (proc_nr = 0; proc_nr < NR_PROCS; proc_nr++) {
+			rmp = &schedproc[proc_nr];
+			if ((rmp->flags & IN_USE) && rmp->max_priority >= USER_Q) {
+				int target_prio = (proc_nr == best_proc_nr) ? USER_Q : (USER_Q + 1);
+				if (rmp->priority != target_prio) {
+					rmp->priority = target_prio;
 					schedule_process_local(rmp);
 				}
 			}
 		}
 	}
 
+set_alarm:
 	if ((r = sys_setalarm(balance_timeout, 0)) != OK)
 		panic("sys_setalarm failed: %d", r);
 }
