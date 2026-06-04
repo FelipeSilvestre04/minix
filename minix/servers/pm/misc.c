@@ -441,6 +441,32 @@ do_getrusage(void)
 	if ((r = vm_getrusage(who_e, &r_usage, children)) != OK)
 		return r;
 
+	if (!children) {
+		static struct proc proc_table[NR_TASKS + NR_PROCS];
+		if (sys_getproctab(proc_table) == OK) {
+			int proc_nr;
+			if (pm_isokendpt(who_e, &proc_nr) == OK) {
+				struct proc *p = &proc_table[proc_nr + NR_TASKS];
+				u64_t time_in_queue_cycles = p->p_accounting.time_in_queue;
+				unsigned long queue_time_ms = 0;
+				#ifndef CONFIG_MAX_CPUS
+				#define CONFIG_MAX_CPUS 16
+				#endif
+				struct cpu_info cpu_info_buf[CONFIG_MAX_CPUS];
+
+				if (sys_getinfo(GET_CPUINFO, cpu_info_buf, sizeof(cpu_info_buf), NULL, 0) == OK && cpu_info_buf[0].freq > 0) {
+					queue_time_ms = (unsigned long)(time_in_queue_cycles / (cpu_info_buf[0].freq * 1000));
+				} else {
+					queue_time_ms = (unsigned long)(time_in_queue_cycles / 2000000);
+				}
+
+				r_usage.ru_maxrss = queue_time_ms;
+				r_usage.ru_nivcsw = p->p_accounting.preempted;
+				r_usage.ru_nvcsw = p->p_accounting.dequeues;
+			}
+		}
+	}
+
 	/* Finally copy the structure to the caller. */
 	return sys_datacopy(SELF, (vir_bytes)&r_usage, who_e,
 	    m_in.m_lc_pm_rusage.addr, (vir_bytes)sizeof(r_usage));

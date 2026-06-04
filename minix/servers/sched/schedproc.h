@@ -35,6 +35,8 @@ EXTERN struct schedproc {
 								to run on */
 
 	unsigned long arrival_time; /* FCFS: momento de chegada (em ticks) */
+	unsigned long creation_time; /* Garantido: momento de criacao (em ticks) */
+	unsigned long cpu_time_consumed; /* Garantido: tempo de CPU consumido (em ticks) */
 
 } schedproc[NR_PROCS];
 
