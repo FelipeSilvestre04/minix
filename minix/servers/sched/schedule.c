@@ -222,7 +222,8 @@ int do_start_scheduling(message *m_ptr)
 
 	/* Para o Escalonador Garantido: Inicializar tempos e prioridade do processo de usuario */
 	if (rmp->priority >= USER_Q) {
-		clock_t uptime, realtime, boottime;
+		clock_t uptime, realtime;
+		time_t boottime;
 		getuptime(&uptime, &realtime, &boottime);
 		rmp->creation_time = (unsigned long) uptime;
 		rmp->cpu_time_consumed = 0;
@@ -381,7 +382,8 @@ void balance_queues(void)
 	struct schedproc *rmp;
 	int r, proc_nr;
 	static struct proc proc_table[NR_TASKS + NR_PROCS];
-	clock_t uptime, realtime, boottime;
+	clock_t uptime, realtime;
+	time_t boottime;
 
 	/* 1. Obter tabelas de processos e uptime atual do kernel */
 	if (sys_getproctab(proc_table) != OK) {
