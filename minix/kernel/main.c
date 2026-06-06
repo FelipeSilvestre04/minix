@@ -347,14 +347,6 @@ static void announce(void)
   printf("|     Minix 3.4.0rc6 - SO - UNIFESP 1s2026        |\n");
   printf("| Projeto Pratico (I) - Equipe 9 Abner Felipe Joao|\n");
   printf("==================================================\n");
-
-  /* Atraso de alguns segundos para permitir gravar o banner de boot no video */
-  {
-      volatile unsigned long long i;
-      for (i = 0; i < 4000000000ULL; i++) {
-          __asm__ __volatile__("");
-      }
-  }
 }
 
 /*===========================================================================*
