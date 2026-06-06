@@ -12,11 +12,12 @@
 #include <assert.h>
 #include <minix/com.h>
 #include <machine/archtypes.h>
+#include <minix/timers.h>
 #include "kernel/proc.h"
 
 static unsigned balance_timeout;
 
-#define BALANCE_TIMEOUT	5 /* how often to balance queues in seconds */
+#define BALANCE_TIMEOUT	1 /* how often to balance queues in seconds */
 
 static int schedule_process(struct schedproc * rmp, unsigned flags);
 
@@ -222,7 +223,8 @@ int do_start_scheduling(message *m_ptr)
 
 	/* Para o Escalonador Garantido: Inicializar tempos e prioridade do processo de usuario */
 	if (rmp->priority >= USER_Q) {
-		clock_t uptime, realtime, boottime;
+		clock_t uptime, realtime;
+		time_t boottime;
 		getuptime(&uptime, &realtime, &boottime);
 		rmp->creation_time = (unsigned long) uptime;
 		rmp->cpu_time_consumed = 0;
@@ -361,6 +363,7 @@ void init_scheduling(void)
 {
 	int r;
 
+	printf("=== ESCALONADOR GARANTIDO (FAIR-SHARE) ATIVO ===\n");
 	balance_timeout = BALANCE_TIMEOUT * sys_hz();
 
 	if ((r = sys_setalarm(balance_timeout, 0)) != OK)
@@ -381,7 +384,8 @@ void balance_queues(void)
 	struct schedproc *rmp;
 	int r, proc_nr;
 	static struct proc proc_table[NR_TASKS + NR_PROCS];
-	clock_t uptime, realtime, boottime;
+	clock_t uptime, realtime;
+	time_t boottime;
 
 	/* 1. Obter tabelas de processos e uptime atual do kernel */
 	if (sys_getproctab(proc_table) != OK) {

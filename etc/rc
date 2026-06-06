@@ -14,6 +14,9 @@ export HOME=/
 export PATH=/sbin:/bin:/usr/sbin:/usr/bin
 umask 022
 
+# Atraso de 5 segundos para permitir gravacao do banner de boot no video
+sleep 5
+
 if [ -e ./rc.subr ] ; then
 	. ./rc.subr # for testing
 else

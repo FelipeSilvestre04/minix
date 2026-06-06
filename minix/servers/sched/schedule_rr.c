@@ -354,6 +354,7 @@ void init_scheduling(void)
 {
 	int r;
 
+	printf("=== ESCALONADOR ROUND ROBIN (RR) ATIVO ===\n");
 	balance_timeout = BALANCE_TIMEOUT * sys_hz();
 
 	if ((r = sys_setalarm(balance_timeout, 0)) != OK)

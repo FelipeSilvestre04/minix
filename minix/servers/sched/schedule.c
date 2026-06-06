@@ -35,7 +35,7 @@ static unsigned balance_timeout;
 
 /*
  * Fila única para todos os processos de usuário.
- * USER_Q é definido em kernel/proc.h — geralmente vale 7 em NR_SCHED_QUEUES=16.
+ * USER_Q é definido in kernel/proc.h — geralmente vale 7 em NR_SCHED_QUEUES=16.
  * Usar sempre USER_Q garante que TODOS entrem na mesma fila (FIFO).
  */
 #define FCFS_PRIORITY       USER_Q
@@ -359,6 +359,7 @@ void init_scheduling(void)
 {
     int r;
 
+    printf("=== ESCALONADOR FIFO (FCFS) ATIVO ===\n");
     balance_timeout = BALANCE_TIMEOUT * sys_hz();
 
     if ((r = sys_setalarm(balance_timeout, 0)) != OK)
