@@ -25,11 +25,11 @@ compilar_e_preparar() {
     local src_file="$DIR_SCHED/schedule_${alg}.c"
     
     echo "-------------------------------------------------------------"
-    echo " 1. Copiando código de schedule_${alg}.c -> schedule.c"
+    echo " 1. Copiando codigo de schedule_${alg}.c -> schedule.c"
     echo "-------------------------------------------------------------"
     cp "$src_file" "$DIR_SCHED/schedule.c"
     if [ $? -ne 0 ]; then
-        echo "Erro ao copiar arquivo para $alg. Você está como root?"
+        echo "Erro ao copiar arquivo para $alg. Voce esta como root?"
         exit 1
     fi
     
@@ -38,7 +38,7 @@ compilar_e_preparar() {
     echo "-------------------------------------------------------------"
     (cd "$DIR_SCHED" && make && make install)
     if [ $? -ne 0 ]; then
-        echo "ERRO de compilação no sched!"
+        echo "ERRO de compilacao no sched!"
         exit 1
     fi
     
@@ -70,8 +70,8 @@ verificar_escalonador_ativo() {
     fi
     
     if [ -z "$log_msg" ]; then
-        echo "Aviso: Não foi possível ler as mensagens de boot para verificar o escalonador."
-        echo "Certifique-se de que a VM foi de fato REINICIADA após o make hdboot."
+        echo "Aviso: Nao foi possivel ler as mensagens de boot para verificar o escalonador."
+        echo "Certifique-se de que a VM foi de fato REINICIADA apos o make hdboot."
         echo "Prosseguindo sob sua responsabilidade..."
         return 0
     fi
@@ -108,21 +108,21 @@ rodar_bateria_testes() {
     fi
     
     echo "============================================================="
-    echo " INICIANDO TESTES PARA O ESCALONADOR: $alg (Métricas: Turnaround + Fila)"
-    echo " Parâmetros: IO=$IO_OPS | CPU=$CPU_OPS"
+    echo " INICIANDO TESTES PARA O ESCALONADOR: $alg (Metricas: Turnaround + Fila)"
+    echo " Parametros: IO=$IO_OPS | CPU=$CPU_OPS"
     echo "============================================================="
     
     echo "### ESCALONADOR: $alg ###" >> "$RESULTS_FILE"
     
     for n in 10 50 100 200; do
-        echo "Executando cenário com $n processos..."
-        echo "Cenário $n processos:" >> "$RESULTS_FILE"
+        echo "Executando cenario com $n processos..."
+        echo "Cenario $n processos:" >> "$RESULTS_FILE"
         
         # Executa silenciando stderr (prints dos filhos de IO) e salvando stdout no arquivo final
         "$bin_teste" "$n" "$IO_OPS" "$CPU_OPS" >> "$RESULTS_FILE" 2>/dev/null
         
         echo "" >> "$RESULTS_FILE"
-        echo "Cenário $n concluído!"
+        echo "Cenario $n concluido!"
     done
     
     echo "Testes para $alg gravados em $RESULTS_FILE com sucesso."
@@ -149,11 +149,11 @@ case "$ESTADO" in
         ;;
         
     esperando_padrao)
-        echo "Verificando se o escalonador ativo é o PADRAO..."
+        echo "Verificando se o escalonador ativo e o PADRAO..."
         verificar_escalonador_ativo padrao
         if [ $? -ne 0 ]; then
-            echo "ERRO CRÍTICO: O escalonador ativo no boot não é o PADRAO!"
-            echo "Por favor, garanta que reiniciou a VM após a instalação."
+            echo "ERRO CRITICO: O escalonador ativo no boot nao e o PADRAO!"
+            echo "Por favor, garanta que reiniciou a VM apos a instalacao."
             exit 1
         fi
         
@@ -170,11 +170,11 @@ case "$ESTADO" in
         ;;
 
     esperando_fifo)
-        echo "Verificando se o escalonador ativo é o FIFO..."
+        echo "Verificando se o escalonador ativo e o FIFO..."
         verificar_escalonador_ativo fifo
         if [ $? -ne 0 ]; then
-            echo "ERRO CRÍTICO: O escalonador ativo no boot não é o FIFO!"
-            echo "Por favor, garanta que reiniciou a VM após a instalação."
+            echo "ERRO CRITICO: O escalonador ativo no boot nao e o FIFO!"
+            echo "Por favor, garanta que reiniciou a VM apos a instalacao."
             exit 1
         fi
         
@@ -191,11 +191,11 @@ case "$ESTADO" in
         ;;
 
     esperando_rr)
-        echo "Verificando se o escalonador ativo é o ROUND ROBIN..."
+        echo "Verificando se o escalonador ativo e o ROUND ROBIN..."
         verificar_escalonador_ativo rr
         if [ $? -ne 0 ]; then
-            echo "ERRO CRÍTICO: O escalonador ativo no boot não é o ROUND ROBIN!"
-            echo "Por favor, garanta que reiniciou a VM após a instalação."
+            echo "ERRO CRITICO: O escalonador ativo no boot nao e o ROUND ROBIN!"
+            echo "Por favor, garanta que reiniciou a VM apos a instalacao."
             exit 1
         fi
         
@@ -212,11 +212,11 @@ case "$ESTADO" in
         ;;
 
     esperando_garantido)
-        echo "Verificando se o escalonador ativo é o GARANTIDO..."
+        echo "Verificando se o escalonador ativo e o GARANTIDO..."
         verificar_escalonador_ativo garantido
         if [ $? -ne 0 ]; then
-            echo "ERRO CRÍTICO: O escalonador ativo no boot não é o GARANTIDO!"
-            echo "Por favor, garanta que reiniciou a VM após a instalação."
+            echo "ERRO CRITICO: O escalonador ativo no boot nao e o GARANTIDO!"
+            echo "Por favor, garanta que reiniciou a VM apos a instalacao."
             exit 1
         fi
         
@@ -224,7 +224,7 @@ case "$ESTADO" in
         
         echo "finalizado" > "$STATE_FILE"
         echo "============================================================="
-        echo " BATERIA COMPLETA DE TESTES CONCLUÍDA COM SUCESSO!"
+        echo " BATERIA COMPLETA DE TESTES CONCLUIDA COM SUCESSO!"
         echo " Todos os resultados (4 colunas) consolidados em: $RESULTS_FILE"
         echo "============================================================="
         rm -f "$STATE_FILE"
