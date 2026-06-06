@@ -61,12 +61,12 @@ verificar_escalonador_ativo() {
     local esperado=$1
     local log_msg=""
     
-    # Tenta obter do dmesg
-    log_msg=$(dmesg | grep "ESCALONADOR" | tail -n 1)
+    # Tenta obter do dmesg (filtrando a mensagem genérica do main.c)
+    log_msg=$(dmesg | grep "ESCALONADOR" | grep -v "CUSTOMIZADO" | tail -n 1)
     
     # Se vazio, tenta /var/log/messages
     if [ -z "$log_msg" ] && [ -f "/var/log/messages" ]; then
-        log_msg=$(grep "ESCALONADOR" /var/log/messages | tail -n 1)
+        log_msg=$(grep "ESCALONADOR" /var/log/messages | grep -v "CUSTOMIZADO" | tail -n 1)
     fi
     
     if [ -z "$log_msg" ]; then
